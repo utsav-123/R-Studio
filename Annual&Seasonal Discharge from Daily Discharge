@@ -1,0 +1,54 @@
+# Load necessary libraries
+library(dplyr)
+library(lubridate)
+library(readxl)
+library(openxlsx)  # or xlsx if you prefer
+
+# Read the Excel file (adjust file path as necessary)
+data <- read_excel("C:/Users/Dell/OneDrive/Desktop/R_try.xlsx", sheet = "Sheet1")
+
+# Check the structure of the data
+str(data)
+
+# Ensure data is a data frame
+if (!is.data.frame(data)) {
+  stop("The data is not a data frame.")
+}
+
+# Convert the date column to Date format and prepare data
+data <- data %>%
+  dplyr::mutate(Date = as.Date(Date),
+                Year = year(Date),
+                Season = case_when(
+                  month(Date) %in% c(3, 4, 5) ~ "PreMonsoon (Spring)",
+                  month(Date) %in% c(6, 7, 8) ~ "Monsoon (Summer)",
+                  month(Date) %in% c(9, 10, 11) ~ "PostMonsoon (Fall)",
+                  month(Date) %in% c(12, 1, 2) ~ "Dry (Winter)"
+                ))
+
+# Check the transformed data
+head(data)
+
+# Calculate the annual average discharge
+annual_avg <- data %>%
+  dplyr::group_by(Year) %>%
+  dplyr::summarise(Annual_Average_Discharge = mean(Discharge, na.rm = TRUE))
+
+# Calculate the seasonal average discharge
+seasonal_avg <- data %>%
+  dplyr::group_by(Year, Season) %>%
+  dplyr::summarise(Seasonal_Average_Discharge = mean(Discharge, na.rm = TRUE))
+
+# Create a new Excel workbook
+wb <- createWorkbook()
+
+# Add the annual average sheet
+addWorksheet(wb, "Annual_Average")
+writeData(wb, sheet = "Annual_Average", annual_avg)
+
+# Add the seasonal average sheet
+addWorksheet(wb, "Seasonal_Average")
+writeData(wb, sheet = "Seasonal_Average", seasonal_avg)
+
+# Save the workbook to a file
+saveWorkbook(wb, "discharge_averages.xlsx", overwrite = TRUE)
