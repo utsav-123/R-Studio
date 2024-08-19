@@ -1,0 +1,7 @@
+library(openxlsx)
+
+# Import the text file (assuming it is tab-delimited)
+data <- read.table("D:\\User\\TData", header = TRUE, sep = " ")
+
+# Convert and save as an Excel file
+write.xlsx(data, file = "TData.xlsx")
