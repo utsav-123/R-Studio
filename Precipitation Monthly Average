@@ -1,0 +1,42 @@
+# Load necessary libraries
+library(dplyr)
+library(lubridate)
+library(readxl)
+library(openxlsx)
+
+# Read the Excel file (adjust file path as necessary)
+data <- read_excel("D:\\KRB\\Hydrometerological datas to be used\\1419.xlsx", sheet = "Phi_PCP")
+
+# Check the structure of the data
+str(data)
+
+# Ensure data is a data frame
+if (!is.data.frame(data)) {
+  stop("The data is not a data frame.")
+}
+
+# Convert the date column to Date format and prepare data
+data <- data %>%
+  dplyr::mutate(Date = as.Date(Date),
+                Year = year(Date),
+                Month = month(Date))
+
+# Check the transformed data
+head(data)
+
+# Calculate the monthly average precipitation for each year
+monthly_avg <- data %>%
+  dplyr::group_by(Year, Month) %>%
+  dplyr::summarise(Monthly_Average_Precipitation = mean(Precipitation, na.rm = TRUE))
+
+# Create a new Excel workbook
+wb <- createWorkbook()
+
+# Add the monthly average sheet
+addWorksheet(wb, "Monthly_Average")
+writeData(wb, sheet = "Monthly_Average", monthly_avg)
+
+# Save the workbook to a file
+saveWorkbook(wb, "1419_monthly_average.xlsx", overwrite = TRUE)
+
+
