@@ -1,0 +1,28 @@
+# Load necessary libraries
+library(openxlsx)
+library(dplyr)
+library(lubridate)
+
+# Read the Excel file with date correction
+file_path <- "D:\\KRB\\GCM arrange\\ACCESS-CM2\\SSP585 Daily Preci.xlsx"
+sheet_name <- "Sheet1"  # Change if necessary
+data <- read.xlsx(file_path, sheet = sheet_name, detectDates = TRUE)
+
+# Check if the date is being read as a numeric value and convert it if necessary
+if (is.numeric(data$Date)) {
+  # Convert the numeric date to an actual Date using Excel's origin (adjust if necessary)
+  data$Date <- as.Date(data$Date, origin = "1899-12-30")
+}
+
+# Extract year and month, then group the data accordingly
+data <- data %>%
+  mutate(YearMonth = format(Date, "%Y-%m")) # Extract year and month in YYYY-MM format
+
+# Calculate the monthly average precipitation for each station
+monthly_avg <- data %>%
+  group_by(YearMonth) %>%
+  summarise(across(-Date, mean, na.rm = TRUE))
+
+# Write the result to a new Excel file
+output_file <- "SSP585_monthly_avg.xlsx"
+write.xlsx(monthly_avg, file = output_file, sheetName = "Monthly Average")
