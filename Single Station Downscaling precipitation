@@ -1,0 +1,82 @@
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(lubridate)
+library(openxlsx)
+
+# Function to extract data and calculate monthly averages
+calculate_monthly_averages <- function(file_path, start_year, end_year) {
+  data <- read_excel(file_path)
+  
+  # Extract the required columns and filter by date range
+  data_filtered <- data %>%
+    filter(year(Date) >= start_year & year(Date) <= end_year) %>%
+    select(Date, Precipitation = `1406`)
+  
+  # Calculate monthly averages
+  monthly_averages <- data_filtered %>%
+    mutate(Month = month(Date)) %>%
+    group_by(Year = year(Date), Month) %>%
+    summarise(Monthly_Avg = mean(Precipitation, na.rm = TRUE)) %>%
+    ungroup()
+  
+  # Calculate average of each month over the period
+  monthly_avg_over_period <- monthly_averages %>%
+    group_by(Month) %>%
+    summarise(Average = mean(Monthly_Avg, na.rm = TRUE))
+  
+  return(monthly_avg_over_period)
+}
+
+# Calculate ratios
+calculate_ratios <- function(observed_file, historical_file, start_year, end_year) {
+  observed_avg <- calculate_monthly_averages(observed_file, start_year, end_year)
+  historical_avg <- calculate_monthly_averages(historical_file, start_year, end_year)
+  
+  ratios <- observed_avg %>%
+    inner_join(historical_avg, by = "Month", suffix = c("_observed", "_historical")) %>%
+    mutate(Ratio = Average_observed / Average_historical)
+  
+  return(ratios)
+}
+
+# Apply ratios to data
+apply_ratios <- function(data_file, ratios, start_year, end_year) {
+  data <- read_excel(data_file)
+  
+  data_filtered <- data %>%
+    filter(year(Date) >= start_year & year(Date) <= end_year) %>%
+    mutate(Month = month(Date))
+  
+  data_adjusted <- data_filtered %>%
+    inner_join(ratios, by = "Month") %>%
+    mutate(Downscaled_Precipitation = `1406` * Ratio) %>%
+    mutate(Date = as.Date(Date)) %>%
+    select(Date, Downscaled_Precipitation)
+  
+  return(data_adjusted)
+}
+
+# File paths
+observed_file <- "D:\\vac practice\\R downscaling\\1406P.xlsx"
+historical_file <- "D:\\vac practice\\R downscaling\\historical.xlsx"
+ssp_245_file <- "D:\\vac practice\\R downscaling\\ssp245.xlsx"
+ssp_585_file <- "D:\\vac practice\\R downscaling\\ssp585.xlsx"
+
+# Calculate ratios
+ratios <- calculate_ratios(observed_file, historical_file, 1986, 2014)
+
+# Save the downscaling factors
+write.xlsx(ratios, "downscaling_factors.xlsx")
+
+# Apply ratios to historical data
+historical_adjusted <- apply_ratios(historical_file, ratios, 1986, 2014)
+write.xlsx(historical_adjusted, "historical_adjusted.xlsx")
+
+# Apply ratios to SSP 245 and SSP 585 data
+ssp_245_adjusted <- apply_ratios(ssp_245_file, ratios, 2026, 2100)
+ssp_585_adjusted <- apply_ratios(ssp_585_file, ratios, 2026, 2100)
+
+# Save the adjusted SSP data
+write.xlsx(ssp_245_adjusted, "ssp_245_adjusted.xlsx")
+write.xlsx(ssp_585_adjusted, "ssp_585_adjusted.xlsx")
