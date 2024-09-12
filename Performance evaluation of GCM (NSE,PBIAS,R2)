@@ -1,0 +1,39 @@
+# Load required libraries
+library(openxlsx)
+library(hydroGOF)
+
+# Read the data from the Excel file
+data <- read.xlsx("D:\\KRB\\Performance evaluation\\1406.xlsx", sheet = 1)
+
+# Extract columns: first column is date, second is observed, and 3rd to 8th are simulated GCMs
+date <- data[, 1]
+observed <- data[, 2]
+simulated_data <- data[, 3:8]  # Simulated data for 6 GCMs
+
+# Create an empty list to store the results
+results <- data.frame(GCM = paste0("GCM_", 1:6), NSE = NA, PBIAS = NA, R2 = NA)
+
+# Loop through each GCM column (3rd to 8th) and calculate NSE, PBIAS, and R²
+for (i in 1:6) {
+  gcm <- simulated_data[, i]
+  
+  # Calculate Nash-Sutcliffe Efficiency (NSE)
+  nse_value <- NSE(gcm, observed)
+  
+  # Calculate Percentage Bias (PBIAS)
+  pbias_value <- pbias(gcm, observed)
+  
+  # Calculate R-squared (R²)
+  r2_value <- cor(gcm, observed)^2
+  
+  # Store the results
+  results$NSE[i] <- nse_value
+  results$PBIAS[i] <- pbias_value
+  results$R2[i] <- r2_value
+}
+
+# Print the results
+print(results)
+
+# Save the results to an Excel file
+write.xlsx(results, "1406 GCM_Results.xlsx")
