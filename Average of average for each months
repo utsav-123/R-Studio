@@ -1,0 +1,44 @@
+# Load necessary libraries
+library(dplyr)
+library(lubridate)
+library(openxlsx)
+
+# Read the data from Excel file
+data <- read.xlsx("C:\\SSP 245\\Precipitation\\BCC-CSM2-MR.xlsx")
+
+# Convert the date column to Date type
+data$Date <- as.Date(data$Date, format = "%Y-%m-%d")
+
+# Extract year and month from the date column
+data$Year <- year(data$Date)
+data$Month <- month(data$Date, label = TRUE, abbr = TRUE)
+
+# Verify that the required columns exist
+required_columns <- c("1406", "1407", "1408", "1409", "1410", "1415", "1416", "1419")
+missing_columns <- setdiff(required_columns, colnames(data))
+if(length(missing_columns) > 0) {
+  stop("The following required columns are missing: ", paste(missing_columns, collapse = ", "))
+}
+
+# Calculate monthly average for each station
+monthly_avg <- data %>%
+  group_by(Year, Month) %>%
+  summarise(across(all_of(required_columns), ~ round(mean(.x, na.rm = TRUE), 3)))
+
+# Calculate average for each month across all years for each station
+monthly_avg_summary <- monthly_avg %>%
+  group_by(Month) %>%
+  summarise(across(all_of(required_columns), ~ round(mean(.x, na.rm = TRUE), 3)))
+
+# Add a column with the average of all stations for each month
+monthly_avg_summary <- monthly_avg_summary %>%
+  mutate(Average = round(rowMeans(across(all_of(required_columns)), na.rm = TRUE), 3))
+
+# Save the results to an Excel file
+wb <- createWorkbook()
+addWorksheet(wb, "Monthly Averages")
+writeData(wb, "Monthly Averages", monthly_avg_summary)
+saveWorkbook(wb, "C:\\Kankai River Basin\\Future Data Graph for Paper\\SSP 245\\Precipitation\\BCC-CSM2-MR_avg.xlsx", overwrite = TRUE)
+
+# Print the result
+print(monthly_avg_summary)
