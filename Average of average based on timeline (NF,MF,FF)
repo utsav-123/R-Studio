@@ -1,0 +1,62 @@
+# Required Libraries
+library(readxl)
+library(openxlsx)
+library(dplyr)
+library(lubridate) # For the year() function
+
+# Load the data
+file_path <- "C:\\SSP 585\\Precipitation\\MPI-ESM1-2-LR.xlsx"
+data <- read_excel(file_path)
+
+# Convert and filter dates
+data <- data %>%
+  mutate(Date = as.Date(Date, format = "%d/%m/%Y")) %>% # Parse date from dd/mm/yyyy format
+  filter(year(Date) >= 2026 & year(Date) <= 2100)
+
+# Define timelines
+NF <- filter(data, year(Date) >= 2026 & year(Date) <= 2050)
+MF <- filter(data, year(Date) >= 2051 & year(Date) <= 2075)
+FF <- filter(data, year(Date) >= 2076 & year(Date) <= 2100)
+
+# Function to calculate monthly averages for a timeline
+calculate_monthly_averages <- function(data) {
+  data %>%
+    mutate(Month = format(Date, "%b"), Year = format(Date, "%Y")) %>%
+    group_by(Year, Month) %>%
+    summarize(across(-Date, mean, na.rm = TRUE)) %>% # Apply mean to all columns except Date
+    ungroup() %>%
+    group_by(Month) %>%
+    summarize(across(-Year, mean, na.rm = TRUE)) %>% # Apply mean to all columns except Year
+    mutate(Average = rowMeans(across(-Month), na.rm = TRUE))
+}
+
+# Calculate averages for each timeline
+NF_avg <- calculate_monthly_averages(NF)
+MF_avg <- calculate_monthly_averages(MF)
+FF_avg <- calculate_monthly_averages(FF)
+
+# Ensure months are ordered from January to December
+month_order <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+NF_avg$Month <- factor(NF_avg$Month, levels = month_order)
+MF_avg$Month <- factor(MF_avg$Month, levels = month_order)
+FF_avg$Month <- factor(FF_avg$Month, levels = month_order)
+
+# Sort results by month order
+NF_avg <- NF_avg %>% arrange(Month)
+MF_avg <- MF_avg %>% arrange(Month)
+FF_avg <- FF_avg %>% arrange(Month)
+
+# Combine results into a single data frame
+results <- data.frame(
+  Month = NF_avg$Month,
+  NF = NF_avg$Average,
+  MF = MF_avg$Average,
+  FF = FF_avg$Average
+)
+
+# Save the results in a single sheet
+output_path <- "C:\\SSP 585\\Precipitation\\MPI-ESM1-2-LR_Avg.xlsx"
+write.xlsx(results, output_path, sheetName = "Averages", rowNames = FALSE)
+
+print("Data processing complete. Results saved in a single sheet.")
