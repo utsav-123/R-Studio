@@ -1,0 +1,69 @@
+# Load necessary libraries
+library(openxlsx)
+library(dplyr)
+library(lubridate)
+
+# Read the Excel file
+file_path <- "C:\\SSP 585\\Precipitation\\EC-Earth3.xlsx"
+data <- read.xlsx(file_path)
+
+# Convert the date column from Excel numeric format to Date format
+data$Date <- as.Date(data$Date, origin = "1899-12-30")
+
+# Print the first few rows after converting the Date column
+cat("Data after converting Date column:\n")
+print(head(data))
+
+# Print the range of dates in the data
+cat("Date range in the data:", range(data$Date), "\n")
+
+# Print the unique years in the original data to verify the range
+cat("Unique years in the data:", unique(year(data$Date)), "\n")
+
+# Filter data from 2026 to 2100
+filtered_data <- data %>%
+  filter(year(Date) >= 2026 & year(Date) <= 2100)
+
+# Print the range of dates after filtering
+cat("Filtered date range:", range(filtered_data$Date), "\n")
+
+# Check the unique years in the filtered data
+cat("Unique years in filtered data:", unique(year(filtered_data$Date)), "\n")
+
+# Verify the number of rows in filtered data
+cat("Number of rows in filtered data:", nrow(filtered_data), "\n")
+
+# Group data by year and calculate annual sums for each station
+annual_sums <- filtered_data %>%
+  mutate(Year = year(Date)) %>%
+  group_by(Year) %>%
+  summarise(across(starts_with("14"), ~ sum(.x, na.rm = TRUE)))
+
+# Print the annual sums to verify
+cat("Annual sums calculated:\n")
+print(head(annual_sums))
+
+# Calculate the average of annual sums across stations
+average_annual_sum <- annual_sums %>%
+  mutate(Average_Annual_Sum = rowMeans(select(., starts_with("14")), na.rm = TRUE))
+
+# Print the average annual sums to verify
+cat("Average annual sums calculated:\n")
+print(head(average_annual_sum))
+
+# Select Year and Average_Annual_Sum for the final output
+final_output <- average_annual_sum %>%
+  select(Year, Average_Annual_Sum)
+
+# Print the final output to verify
+cat("Final output:\n")
+print(head(final_output))
+
+# Save results to an Excel file
+output_path <- "C:\\Precipitation\\SSP 585\\EC-Earth3_Aavg.xlsx"
+write.xlsx(list(
+  "Annual_Sums" = annual_sums,
+  "Average_Annual_Sum" = final_output
+), output_path)
+
+cat("Results saved to:", output_path)
