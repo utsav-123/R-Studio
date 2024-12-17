@@ -1,0 +1,61 @@
+# Load necessary libraries
+library(openxlsx)
+library(dplyr)
+library(lubridate)
+
+# Read the Excel file
+file_path <- "C:\\Discharge at Outlet\\All Discharge_SSP585.xlsx"
+data <- read.xlsx(file_path)
+
+# Convert the date column from Excel numeric format to Date format
+data$Date <- as.Date(data$Date, origin = "1899-12-30")
+
+# Print initial information
+cat("Initial data:\n")
+print(head(data))
+cat("Date range in the data:", range(data$Date), "\n")
+
+# Filter data from 2026 to 2100
+filtered_data <- data %>%
+  filter(year(Date) >= 2026 & year(Date) <= 2100)
+
+# Columns to process (dynamic handling)
+model_columns <- c("BCC-CSM2-MR", "MPI-ESM1-2-HR", "NorESM2-MM", 
+                   "ACCESS-ESM1-5", "MPI-ESM1-2-LR", "EC-Earth3")
+
+# Check if all required columns are in the dataset
+missing_columns <- setdiff(model_columns, colnames(filtered_data))
+if (length(missing_columns) > 0) {
+  stop("The following columns are missing from the data: ", paste(missing_columns, collapse = ", "))
+}
+
+# Group data by year and calculate annual averages for each column
+annual_avg <- filtered_data %>%
+  mutate(Year = year(Date)) %>%
+  group_by(Year) %>%
+  summarise(across(all_of(model_columns), ~ mean(.x, na.rm = TRUE)))
+
+# Print the annual averages
+cat("Annual averages calculated:\n")
+print(head(annual_avg))
+
+# Calculate the average of annual averages across all models
+average_annual_avg <- annual_avg %>%
+  mutate(Average_Annual_Avg = rowMeans(select(., all_of(model_columns)), na.rm = TRUE))
+
+# Prepare final output: Year and Average_Annual_Avg
+final_output <- average_annual_avg %>%
+  select(Year, Average_Annual_Avg)
+
+# Print the final output
+cat("Final output:\n")
+print(head(final_output))
+
+# Save results to an Excel file
+output_path <- "C:\\Results for annual average\\Discharge at Outlet\\All Discharge_SSP585_Aavg.xlsx"
+write.xlsx(list(
+  "Annual_Averages" = annual_avg,
+  "Average_Annual_Avg" = final_output
+), output_path, overwrite = TRUE)
+
+cat("Results saved to:", output_path, "\n")
