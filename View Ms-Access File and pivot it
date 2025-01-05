@@ -1,0 +1,30 @@
+# Load necessary libraries
+library(RODBC)
+library(dplyr)
+library(tidyr)
+library(openxlsx)
+
+# Path to the MS Access file
+access_file_path <- "C:/ACCESS-ESM1-5/ESMI-HIS-DAILY.mdb"
+
+# Establish a connection to the Access database
+conn <- odbcConnectAccess2007(access_file_path)
+
+# Query to retrieve the necessary columns
+query <- "SELECT SUB, YEAR, MON, FLOW_OUTcms FROM rch"
+
+# Fetch the data
+data <- sqlQuery(conn, query)
+
+# Close the connection
+close(conn)
+
+# Pivot the data to have each SUB as a separate column
+data_pivoted <- data %>%
+  pivot_wider(names_from = SUB, values_from = FLOW_OUTcms, names_prefix = "SUB_")
+
+# Save the pivoted data to an Excel file
+output_file_path <- "C:/ACCESS-ESM1-5/ESMI-HIS-DAILY-Pivoted.xlsx"
+write.xlsx(data_pivoted, output_file_path, row.names = FALSE)
+
+cat("Data pivoted and saved to", output_file_path)
